@@ -22,18 +22,19 @@ class Machine:
         self.card_num = None
         self.start_time = None
         self.end_time = None
+        self.status = 'off'
         
 
 
-# 在Machine类中添加一个end_time属性
-class Machine:
-    def __init__(self, id, type, price):
-        self.id = id
-        self.type = type
-        self.price = price
-        self.card_num = None
-        self.start_time = None
-        self.end_time = None
+# # 在Machine类中添加一个end_time属性
+# class Machine:
+#     def __init__(self, id, type, price):
+#         self.id = id
+#         self.type = type
+#         self.price = price
+#         self.card_num = None
+#         self.start_time = None
+#         self.end_time = None
 
     
 
@@ -100,7 +101,7 @@ class ManagementSystem(QWidget):
         self.cards = [] # 存储卡号信息
         self.machines = [] # 存储机器信息
         self.config_dialog = None
-        self.machines = [] # 初始化列表
+        # self.machines = [] # 初始化列表
         machine1 = Machine(1, '1', 1) # 创建一个类型为1，价格为1的Machine对象
         machine2 = Machine(2, '2', 2) # 创建一个类型为2，价格为2的Machine对象
         machine3 = Machine(3, '3', 3) # 创建一个类型为3，价格为3的Machine对象
@@ -309,26 +310,40 @@ class ManagementSystem(QWidget):
     # 上机管理部分函数
 
     def start_machine(self, machine_id):
-        machine = self.machines[machine_id - 1] # 从列表中找到对应的Machine对象
-        machine.start_time = QDateTime.currentDateTime()
-        machine.card_num = int(self.card_num_edit.text())
-        # 上机函数，根据输入的卡号和机器id，验证是否可以上机，并记录上机时间和消费金额等信息
-        import time
-        num = int(getattr(self, f"machine{machine_id}_card_num_edit").text())  # 获取输入的卡号，根据id动态获取控件属性
-        for card in self.cards: # 遍历self.cards列表
-            if card.num == num: # 如果找到匹配的卡号
-                if card.is_lost: # 如果是挂失状态，提示无法上机，并返回
-                    print("该卡已挂失，无法上机")
-                    return 
-                if card.balance < int(getattr(self, f"machine{machine_id}_price_label").text()): # 将价格转换为浮点数
-                    print("该卡余额不足，无法上机")
-                    return 
-                machine = Machine(machine_id, "普通", getattr(self, f"machine{machine_id}_price_label").text()) # 创建一个Machine对象，根据id动态获取控件属性
-                machine.card_num = num # 记录卡号
-                machine.start_time = time.time() # 记录上机时间
-                self.machines.append(machine) # 添加到self.machines列表中
-                getattr(self, f"machine{machine_id}_status_label").setText("使用中") # 更新机器状态，根据id动态获取控件属性
-                break # 跳出循环
+        
+        try:
+            num = int(getattr(self, f"machine{machine_id}_card_num_edit").text())  # 获取输入的卡号，根据id动态获取控件属性
+            machine = self.machines[machine_id - 1] # 从列表中找到对应的Machine对象
+            if machine.status == 'off': # 如果机器的状态是关闭的
+                machine.status = 'on' # 将机器的状态改为开启
+                # 其他的操作
+                machine.start_time = QDateTime.currentDateTime()
+                machine.card_num = int(self.card_num_edit.text())
+                # 上机函数，根据输入的卡号和机器id，验证是否可以上机，并记录上机时间和消费金额等信息
+                import time
+                for card in self.cards: # 遍历self.cards列表
+                    if card.num == num: # 如果找到匹配的卡号
+                        if card.is_lost: # 如果是挂失状态，提示无法上机，并返回
+                            print("该卡已挂失，无法上机")
+                            machine.status = 'off'
+                            return 
+                        if card.balance < int(getattr(self, f"machine{machine_id}_price_label").text()): # 将价格转换为浮点数
+                            print("该卡余额不足，无法上机")
+                            return 
+                        machine = Machine(machine_id, "普通", getattr(self, f"machine{machine_id}_price_label").text()) # 创建一个Machine对象，根据id动态获取控件属性
+                        machine.card_num = num # 记录卡号
+                        machine.start_time = time.time() # 记录上机时间
+                        self.machines.append(machine) # 添加到self.machines列表中
+                        getattr(self, f"machine{machine_id}_status_label").setText("使用中") # 更新机器状态，根据id动态获取控件属性
+                        break # 跳出循环
+                    else: # 如果机器的状态是开启的
+                        print('已经上机，无需再次操作') # 打印提示信息
+        except Exception as e:
+            print(e)
+            print('请输入上网卡号')
+        
+
+            
 
 
     def update_stat_table(self, id, num, start_time, end_time, cost):
@@ -371,42 +386,42 @@ class ManagementSystem(QWidget):
 
    
     def end_machine(self, machine_id):
-        # 省略其他代码
         machine = self.machines[machine_id - 1]
-        machine.end_time = QDateTime.currentDateTime() # 记录当前时间
-        row_count = self.stat_table.rowCount()
-        self.stat_table.insertRow(row_count)
-        self.stat_table.setItem(row_count, 0, QTableWidgetItem(str(machine.id)))
-        self.stat_table.setItem(row_count, 1, QTableWidgetItem(str(machine.card_num)))
-        self.stat_table.setItem(row_count, 2, QTableWidgetItem(machine.start_time.toString('yyyy-MM-dd hh:mm:ss')))
-        self.stat_table.setItem(row_count, 3, QTableWidgetItem(machine.end_time.toString('yyyy-MM-dd hh:mm:ss')))
-        seconds = machine.start_time.secsTo(machine.end_time) # 计算使用机器的秒数
-        cost = seconds * machine.price / 60 # 计算使用机器的费用，假设是按分钟收费
-        cost = int(cost) + int(machine.price)
-        # num = int(getattr(self, f"machine{id}_card_num_edit").text()) # 获取输入的卡号，根据id动态获取控件属性
-        for card in self.cards: # 从卡列表中找到对应的卡对象
-            if card.num == machine.card_num:
-                card.balance -= cost # 从卡的余额中扣除费用
-                if card.num == int(self.card_num_edit.text()): # 如果当前显示的是这张卡的信息，就更新余额显示
-                    self.balance_edit.setText(str(card.balance))
-                break
-        # 在end_machine方法中
-        if machine_id == 1: # 根据机器号，更新相应的状态标签和卡号输入框
-            self.machine1_status_label.setText('空闲')
-            self.machine1_card_num_edit.clear()
-        elif machine_id == 2:
-            self.machine2_status_label.setText('空闲')
-            self.machine2_card_num_edit.clear()
-        elif machine_id == 3:
-            self.machine3_status_label.setText('空闲')
-            self.machine3_card_num_edit.clear()
-        row_count = self.stat_table.rowCount()
+
+        if machine.status == 'on': # 如果机器的状态是开启的
+            machine.status = 'off' # 将机器的状态改为关闭
+            # 省略其他代码
+            machine.end_time = QDateTime.currentDateTime() # 记录当前时间
+            seconds = machine.start_time.secsTo(machine.end_time) # 计算使用机器的秒数
+            cost = seconds * machine.price / 60 # 计算使用机器的费用，假设是按分钟收费
+            cost = int(cost) + int(machine.price)
+            # num = int(getattr(self, f"machine{id}_card_num_edit").text()) # 获取输入的卡号，根据id动态获取控件属性
+            for card in self.cards: # 从卡列表中找到对应的卡对象
+                if card.num == machine.card_num:
+                    card.balance -= cost # 从卡的余额中扣除费用
+                    if card.num == int(self.card_num_edit.text()): # 如果当前显示的是这张卡的信息，就更新余额显示
+                        self.balance_edit.setText(str(card.balance))
+                    break
+            # 在end_machine方法中
+            if machine_id == 1: # 根据机器号，更新相应的状态标签和卡号输入框
+                self.machine1_status_label.setText('空闲')
+                self.machine1_card_num_edit.clear()
+            elif machine_id == 2:
+                self.machine2_status_label.setText('空闲')
+                self.machine2_card_num_edit.clear()
+            elif machine_id == 3:
+                self.machine3_status_label.setText('空闲')
+                self.machine3_card_num_edit.clear()
+            row_count = self.stat_table.rowCount()
+            self.stat_table.insertRow(row_count)
+            self.stat_table.setItem(row_count, 0, QTableWidgetItem(str(machine.id)))
+            self.stat_table.setItem(row_count, 1, QTableWidgetItem(str(machine.card_num)))
+            self.stat_table.setItem(row_count, 2, QTableWidgetItem(machine.start_time.toString('yyyy-MM-dd hh:mm:ss')))
+            self.stat_table.setItem(row_count, 3, QTableWidgetItem(machine.end_time.toString('yyyy-MM-dd hh:mm:ss')))
+            # print(self.stat_table.item(0, 1).text())
+        else: # 如果机器的状态是关闭的
+            print('已经下机，无需再次操作') # 打印提示信息
         # self.stat_table.insertRow(row_count)
-        self.stat_table.setItem(row_count, 0, QTableWidgetItem(str(machine.id)))
-        self.stat_table.setItem(row_count, 1, QTableWidgetItem(str(machine.card_num)))
-        self.stat_table.setItem(row_count, 2, QTableWidgetItem(machine.start_time.toString('yyyy-MM-dd hh:mm:ss')))
-        self.stat_table.setItem(row_count, 3, QTableWidgetItem(machine.end_time.toString('yyyy-MM-dd hh:mm:ss')))
-        self.stat_table.insertRow(row_count)
     # 添加一个保存报表的方法，可以选择保存为csv或txt格式
     def save_report(self):
         file_name, file_type = QFileDialog.getSaveFileName(self, '保存报表', '', 'CSV files (*.csv);;Text files (*.txt)')
@@ -428,10 +443,13 @@ class ManagementSystem(QWidget):
         if card_num[1]:
             result = []
             for i in range(self.stat_table.rowCount()):
+                # print(self.stat_table.item(i, 1).text())
+                # print(str(card_num[0]))
                 if self.stat_table.item(i, 1).text() == str(card_num[0]):
-                    result.append([self.stat_table.item(i,j).text() for j in range(4)])
+                    result.append(self.stat_table.item(i, 1).text())
             if result:
-                QMessageBox.information(self, '查询结果', '\n'.join(['\t'.join(r) for r in result]))
+                # result = [list(x) for x in set(tuple(x) for x in result)]
+                QMessageBox.information(self, '查询结果', '\n' + (self.stat_table.item(i, 1).text()))
             else:
                 QMessageBox.warning(self, '查询结果', '没有找到该卡号的上机记录')
 
